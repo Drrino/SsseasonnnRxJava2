@@ -3,31 +3,53 @@ package drrino.com.ssseasonnnrxjava2;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.TextView;
+import android.widget.Toast;
+import drrino.com.ssseasonnnrxjava2.model.bean.DailyListBean;
+import drrino.com.ssseasonnnrxjava2.model.bean.ThemeListBean;
+import drrino.com.ssseasonnnrxjava2.model.http.RetrofitHelper;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "TAG";
+
+    private TextView tv;
+
+    private RetrofitHelper retrofitHelper = new RetrofitHelper();
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        tv = (TextView) findViewById(R.id.tv);
+
         //demo1();
         //demo2();
         //demo3();
         //demo4();
         //demo5();
         //demo6();
-        demo7();
+        //demo7();
+        //demo8();
+        //demo9();
+        //demo10();
+        //demo11();
+        demo12();
     }
 
 
@@ -259,6 +281,152 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void accept(@NonNull Integer integer) throws Exception {
                     Log.e(TAG, "Observer thread is :" + Thread.currentThread().getName());
                     Log.e(TAG, "onNext: " + integer);
+                }
+            });
+    }
+
+
+    /**
+     * 与retrofit相结合
+     */
+    public void demo8() {
+        retrofitHelper.fetchDailyListInfo()
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(new Observer<DailyListBean>() {
+                @Override public void onSubscribe(@NonNull Disposable d) {
+
+                }
+
+
+                @Override public void onNext(@NonNull DailyListBean dailyListBean) {
+                    tv.setText(dailyListBean.toString());
+                }
+
+
+                @Override public void onError(@NonNull Throwable e) {
+                    Toast.makeText(MainActivity.this, "获取失败", Toast.LENGTH_SHORT).show();
+                }
+
+
+                @Override public void onComplete() {
+                    Toast.makeText(MainActivity.this, "获取成功", Toast.LENGTH_SHORT).show();
+                }
+            });
+    }
+
+
+    /**
+     * 将Integer转化成String
+     */
+    public void demo9() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                e.onNext(1);
+                e.onNext(2);
+                e.onNext(3);
+            }
+        }).map(new Function<Integer, String>() {
+            @Override public String apply(@NonNull Integer integer) throws Exception {
+                return "This is result " + integer;
+            }
+        }).subscribe(new Consumer<String>() {
+            @Override public void accept(@NonNull String s) throws Exception {
+                Log.e(TAG, s);
+            }
+        });
+    }
+
+
+    /**
+     * 上游每发送一个事件, flatMap都将创建一个新的水管, 然后发送转换之后的新的事件, 下游接收到的就是这些新的水管发送的数据
+     * flatMap并不保证事件的顺序
+     */
+    public void demo10() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                e.onNext(1);
+                e.onNext(2);
+                e.onNext(3);
+            }
+        }).flatMap(new Function<Integer, ObservableSource<String>>() {
+            @Override public ObservableSource<String> apply(@NonNull Integer integer)
+                throws Exception {
+                List<String> list = new ArrayList<>();
+                for (int i = 0; i < 3; i++) {
+                    list.add("value is " + integer);
+                }
+                return Observable.fromIterable(list).delay(1, TimeUnit.SECONDS);
+            }
+        }).subscribe(new Consumer<String>() {
+            @Override public void accept(@NonNull String s) throws Exception {
+                Log.e(TAG, s);
+            }
+        });
+    }
+
+
+    /**
+     * concatMap和flatMap的作用几乎一模一样,只是它的结果是严格按照上游发送的顺序来发送的
+     */
+    public void demo11() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                e.onNext(1);
+                e.onNext(2);
+                e.onNext(3);
+            }
+        }).concatMap(new Function<Integer, ObservableSource<String>>() {
+            @Override public ObservableSource<String> apply(@NonNull Integer integer)
+                throws Exception {
+                List<String> list = new ArrayList<>();
+                for (int i = 0; i < 3; i++) {
+                    list.add("value is " + integer);
+                }
+                return Observable.fromIterable(list).delay(1, TimeUnit.SECONDS);
+            }
+        }).subscribe(new Consumer<String>() {
+            @Override public void accept(@NonNull String s) throws Exception {
+                Log.e(TAG, s);
+            }
+        });
+    }
+
+
+    /**
+     * 先获取最新日报设个标题,再获取主题日报设置个名称
+     */
+    public void demo12() {
+        retrofitHelper.fetchDailyListInfo()         //获取最新日报
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext(new Consumer<DailyListBean>() {
+                @Override public void accept(@NonNull DailyListBean dailyListBean)
+                    throws Exception {
+                    tv.setText(dailyListBean.getStories().get(0).getTitle());
+                }
+            }).delay(2, TimeUnit.SECONDS)
+            .observeOn(Schedulers.io())             //获取主题日报
+            .flatMap(new Function<DailyListBean, ObservableSource<ThemeListBean>>() {
+                @Override
+                public ObservableSource<ThemeListBean> apply(@NonNull DailyListBean dailyListBean)
+                    throws Exception {
+                    return retrofitHelper.fetchThemesListInfo();
+                }
+            })
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(new Consumer<ThemeListBean>() {
+                @Override public void accept(@NonNull ThemeListBean themeListBean)
+                    throws Exception {
+                    tv.setText(themeListBean.getOthers().get(0).getName());
+                    Toast.makeText(MainActivity.this, "获取主题日报成功", Toast.LENGTH_SHORT).show();
+                }
+            }, new Consumer<Throwable>() {
+                @Override public void accept(@NonNull Throwable throwable) throws Exception {
+                    Toast.makeText(MainActivity.this, "获取主题日报失败", Toast.LENGTH_SHORT).show();
                 }
             });
     }
