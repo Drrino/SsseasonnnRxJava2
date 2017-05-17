@@ -6,6 +6,7 @@ import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 import drrino.com.ssseasonnnrxjava2.model.bean.DailyListBean;
+import drrino.com.ssseasonnnrxjava2.model.bean.DailyThemeListBean;
 import drrino.com.ssseasonnnrxjava2.model.bean.ThemeListBean;
 import drrino.com.ssseasonnnrxjava2.model.http.RetrofitHelper;
 import io.reactivex.Observable;
@@ -16,6 +17,7 @@ import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
@@ -49,7 +51,10 @@ public class MainActivity extends AppCompatActivity {
         //demo9();
         //demo10();
         //demo11();
-        demo12();
+        //demo12();
+        //demo13();
+        //demo14();
+        demo15();
     }
 
 
@@ -427,6 +432,183 @@ public class MainActivity extends AppCompatActivity {
             }, new Consumer<Throwable>() {
                 @Override public void accept(@NonNull Throwable throwable) throws Exception {
                     Toast.makeText(MainActivity.this, "获取主题日报失败", Toast.LENGTH_SHORT).show();
+                }
+            });
+    }
+
+
+    /**
+     * zip的使用
+     */
+    public void demo13() {
+        Observable.zip(Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                Log.e(TAG, "e 1");
+                e.onNext(1);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e 2");
+                e.onNext(2);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e 3");
+                e.onNext(3);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e 4");
+                e.onNext(4);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e complete1");
+                e.onComplete();
+            }
+        }), Observable.create(new ObservableOnSubscribe<String>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<String> e) throws Exception {
+                Log.e(TAG, "e A");
+                e.onNext("A");
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e B");
+                e.onNext("B");
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e C");
+                e.onNext("C");
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e D");
+                e.onNext("D");
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e complete2");
+                e.onComplete();
+            }
+        }), new BiFunction<Integer, String, String>() {
+            @Override
+            public String apply(
+                @NonNull Integer integer, @NonNull String s)
+                throws Exception {
+                return integer + s;
+            }
+        }).subscribe(new Observer<String>() {
+            @Override public void onSubscribe(@NonNull Disposable d) {
+                Log.e(TAG, "onSubscribe");
+            }
+
+
+            @Override public void onNext(@NonNull String s) {
+                Log.e(TAG, "onNext: " + s);
+            }
+
+
+            @Override public void onError(@NonNull Throwable e) {
+                Log.e(TAG, "onError");
+            }
+
+
+            @Override public void onComplete() {
+                Log.e(TAG, "onComplete");
+            }
+        });
+    }
+
+
+    /**
+     * io线程使用zip
+     * zip发送的事件数量跟上游中发送事件最少的那一根水管的事件数量是有关
+     */
+    public void demo14() {
+        Observable.zip(Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                Log.e(TAG, "e 1");
+                e.onNext(1);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e 2");
+                e.onNext(2);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e 3");
+                e.onNext(3);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e 4");
+                e.onNext(4);
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e complete1");
+                e.onComplete();
+            }
+        }).subscribeOn(Schedulers.io()), Observable.create(new ObservableOnSubscribe<String>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<String> e) throws Exception {
+                Log.e(TAG, "e A");
+                e.onNext("A");
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e B");
+                e.onNext("B");
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e C");
+                e.onNext("C");
+                Thread.sleep(1000);
+
+                Log.e(TAG, "e complete2");
+                e.onComplete();
+            }
+        }).subscribeOn(Schedulers.io()), new BiFunction<Integer, String, String>() {
+            @Override
+            public String apply(
+                @NonNull Integer integer, @NonNull String s)
+                throws Exception {
+                return integer + s;
+            }
+        }).subscribe(new Observer<String>() {
+            @Override public void onSubscribe(@NonNull Disposable d) {
+                Log.e(TAG, "onSubscribe");
+            }
+
+
+            @Override public void onNext(@NonNull String s) {
+                Log.e(TAG, "onNext: " + s);
+            }
+
+
+            @Override public void onError(@NonNull Throwable e) {
+                Log.e(TAG, "onError");
+            }
+
+
+            @Override public void onComplete() {
+                Log.e(TAG, "onComplete");
+            }
+        });
+    }
+
+
+    /**
+     * zip操作和retrofit进行相结合
+     */
+    public void demo15() {
+        Observable.zip(retrofitHelper.fetchDailyListInfo().subscribeOn(Schedulers.io()),
+            retrofitHelper.fetchThemesListInfo().subscribeOn(Schedulers.io()),
+            new BiFunction<DailyListBean, ThemeListBean, DailyThemeListBean>() {
+                @Override
+                public DailyThemeListBean apply(
+                    @NonNull DailyListBean dailyListBean, @NonNull ThemeListBean themeListBean)
+                    throws Exception {
+                    return new DailyThemeListBean(dailyListBean, themeListBean);
+                }
+            }).observeOn(AndroidSchedulers.mainThread()).subscribe(
+            new Consumer<DailyThemeListBean>() {
+                @Override public void accept(@NonNull DailyThemeListBean dailyThemeListBean)
+                    throws Exception {
+                    tv.setText(
+                        dailyThemeListBean.getDailyListBean().getStories().get(0).getTitle() +
+                            "&&" +
+                            dailyThemeListBean.getThemeListBean().getOthers().get(0).getName());
                 }
             });
     }
