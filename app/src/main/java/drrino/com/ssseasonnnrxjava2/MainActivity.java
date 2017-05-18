@@ -20,6 +20,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +55,13 @@ public class MainActivity extends AppCompatActivity {
         //demo12();
         //demo13();
         //demo14();
-        demo15();
+        //demo15();
+        //demo16();
+        //demo17();
+        //demo18();
+        //demo19();
+        //demo20();
+        demo21();
     }
 
 
@@ -611,5 +618,184 @@ public class MainActivity extends AppCompatActivity {
                             dailyThemeListBean.getThemeListBean().getOthers().get(0).getName());
                 }
             });
+    }
+
+
+    /**
+     * Backpressure出现
+     */
+    public void demo16() {
+        Observable<Integer> observable1 = Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                for (int i = 0; ; i++) {
+                    emitter.onNext(i);
+                }
+            }
+        }).subscribeOn(Schedulers.io());
+
+        Observable<String> observable2 = Observable.create(new ObservableOnSubscribe<String>() {
+            @Override
+            public void subscribe(ObservableEmitter<String> emitter) throws Exception {
+                emitter.onNext("A");
+            }
+        }).subscribeOn(Schedulers.io());
+
+        Observable.zip(observable1, observable2, new BiFunction<Integer, String, String>() {
+            @Override
+            public String apply(Integer integer, String s) throws Exception {
+                return integer + s;
+            }
+        }).observeOn(AndroidSchedulers.mainThread()).subscribe(new Consumer<String>() {
+            @Override
+            public void accept(String s) throws Exception {
+                Log.d(TAG, s);
+            }
+        }, new Consumer<Throwable>() {
+            @Override
+            public void accept(Throwable throwable) throws Exception {
+                Log.w(TAG, throwable);
+            }
+        });
+    }
+
+
+    /**
+     * Backpressure出现,通过filter减少内存
+     */
+    public void demo17() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                for (int i = 0; ; i++) {
+                    e.onNext(i);
+                }
+            }
+        }).subscribeOn(Schedulers.io()).filter(new Predicate<Integer>() {
+            @Override public boolean test(@NonNull Integer integer) throws Exception {
+                return integer % 10 == 0;
+            }
+        }).observeOn(AndroidSchedulers.mainThread()).subscribe(new Consumer<Integer>() {
+            @Override public void accept(@NonNull Integer integer) throws Exception {
+                Log.e(TAG, String.valueOf(integer));
+            }
+        });
+    }
+
+
+    /**
+     * Backpressure出现,通过sample减少内存
+     */
+    public void demo18() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                for (int i = 0; ; i++) {
+                    e.onNext(i);
+                }
+            }
+        })
+            .subscribeOn(Schedulers.io())
+            .sample(2, TimeUnit.SECONDS)        //隔两秒取样
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                new Consumer<Integer>() {
+                    @Override public void accept(@NonNull Integer integer) throws Exception {
+                        Log.e(TAG, String.valueOf(integer));
+                    }
+                });
+    }
+
+
+    /**
+     * Backpressure出现,通过延时上游速度减少内存
+     */
+    public void demo19() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                for (int i = 0; ; i++) {
+                    e.onNext(i);
+                    Thread.sleep(2000);
+                }
+            }
+        })
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                new Consumer<Integer>() {
+                    @Override public void accept(@NonNull Integer integer) throws Exception {
+                        Log.e(TAG, String.valueOf(integer));
+                    }
+                });
+    }
+
+
+    /**
+     * zip操作Backpressure出现,使用sample采样减少内存
+     */
+    public void demo20() {
+        Observable.zip(Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                for (int i = 0; ; i++) {
+                    e.onNext(i);
+                }
+            }
+        }).subscribeOn(Schedulers.io()).sample(2, TimeUnit.SECONDS), Observable.create(
+            new ObservableOnSubscribe<String>() {
+                @Override public void subscribe(@NonNull ObservableEmitter<String> e)
+                    throws Exception {
+                    e.onNext("A");
+                }
+            }).subscribeOn(Schedulers.io()), new BiFunction<Integer, String, String>() {
+            @Override public String apply(@NonNull Integer integer, @NonNull String s)
+                throws Exception {
+                return integer + s;
+            }
+        }).observeOn(AndroidSchedulers.mainThread()).subscribe(new Consumer<String>() {
+            @Override public void accept(@NonNull String s) throws Exception {
+                Log.e(TAG, s);
+            }
+        }, new Consumer<Throwable>() {
+            @Override public void accept(@NonNull Throwable throwable) throws Exception {
+                Log.w(TAG, throwable);
+            }
+        });
+    }
+
+
+    /**
+     * zip操作Backpressure出现,延时上游减少内存
+     */
+    public void demo21() {
+        Observable.zip(Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull ObservableEmitter<Integer> e)
+                throws Exception {
+                for (int i = 0; ; i++) {
+                    e.onNext(i);
+                    Thread.sleep(2000);
+                }
+            }
+        }).subscribeOn(Schedulers.io()), Observable.create(
+            new ObservableOnSubscribe<String>() {
+                @Override public void subscribe(@NonNull ObservableEmitter<String> e)
+                    throws Exception {
+                    e.onNext("A");
+                }
+            }).subscribeOn(Schedulers.io()), new BiFunction<Integer, String, String>() {
+            @Override public String apply(@NonNull Integer integer, @NonNull String s)
+                throws Exception {
+                return integer + s;
+            }
+        }).observeOn(AndroidSchedulers.mainThread()).subscribe(new Consumer<String>() {
+            @Override public void accept(@NonNull String s) throws Exception {
+                Log.e(TAG, s);
+            }
+        }, new Consumer<Throwable>() {
+            @Override public void accept(@NonNull Throwable throwable) throws Exception {
+                Log.w(TAG, throwable);
+            }
+        });
     }
 }
