@@ -3,12 +3,18 @@ package drrino.com.ssseasonnnrxjava2;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import drrino.com.ssseasonnnrxjava2.model.bean.DailyListBean;
 import drrino.com.ssseasonnnrxjava2.model.bean.DailyThemeListBean;
 import drrino.com.ssseasonnnrxjava2.model.bean.ThemeListBean;
 import drrino.com.ssseasonnnrxjava2.model.http.RetrofitHelper;
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
+import io.reactivex.FlowableEmitter;
+import io.reactivex.FlowableOnSubscribe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
@@ -25,13 +31,15 @@ import io.reactivex.schedulers.Schedulers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "TAG";
-
     private TextView tv;
-
+    private Button start, request;
     private RetrofitHelper retrofitHelper = new RetrofitHelper();
+    public static Subscription mSubscription;
 
 
     @Override
@@ -40,6 +48,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         tv = (TextView) findViewById(R.id.tv);
+        start = (Button) findViewById(R.id.start);
+        request = (Button) findViewById(R.id.request);
 
         //demo1();
         //demo2();
@@ -61,7 +71,21 @@ public class MainActivity extends AppCompatActivity {
         //demo18();
         //demo19();
         //demo20();
-        demo21();
+        //demo21();
+        //demo22();
+        //demo23();
+        //demo24();
+        //demo25();
+        //demo26();
+        //demo27();
+        //demo28();
+        //demo29();
+        demo30();
+    }
+
+
+    public static void request(long n) {
+        mSubscription.request(n);
     }
 
 
@@ -795,6 +819,439 @@ public class MainActivity extends AppCompatActivity {
         }, new Consumer<Throwable>() {
             @Override public void accept(@NonNull Throwable throwable) throws Exception {
                 Log.w(TAG, throwable);
+            }
+        });
+    }
+
+
+    /**
+     * Flowable的使用
+     * 添加BackpressureStrategy.ERROR参数,上下游不均衡时直接抛出异常
+     * 下游onSubscribe传的是Subscription不再是Disposable
+     * 不添加s.request(Long.MAX_VALUE)会抛MissingBackpressureException异常
+     */
+    public void demo22() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "e 1");
+                e.onNext(1);
+                Log.e(TAG, "e 2");
+                e.onNext(2);
+                Log.e(TAG, "e 3");
+                e.onNext(3);
+                Log.e(TAG, "e complete");
+                e.onComplete();
+            }
+        }, BackpressureStrategy.ERROR).subscribe(new Subscriber<Integer>() {
+            @Override public void onSubscribe(Subscription s) {
+                Log.e(TAG, "onSubscribe");
+                s.request(Long.MAX_VALUE);
+            }
+
+
+            @Override public void onNext(Integer integer) {
+                Log.e(TAG, "onNext: " + integer);
+            }
+
+
+            @Override public void onError(Throwable t) {
+                Log.w(TAG, "onError: ", t);
+            }
+
+
+            @Override public void onComplete() {
+                Log.e(TAG, "onComplete");
+            }
+        });
+    }
+
+
+    /**
+     * 不添加s.request(Long.MAX_VALUE)并使上游处于io线程,下游接收不到事件
+     * s.request()控制下游处理上游多少事件
+     */
+    public void demo23() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "e 1");
+                e.onNext(1);
+                Log.e(TAG, "e 2");
+                e.onNext(2);
+                Log.e(TAG, "e 3");
+                e.onNext(3);
+                Log.e(TAG, "e complete");
+                e.onComplete();
+            }
+        }, BackpressureStrategy.ERROR)
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                new Subscriber<Integer>() {
+                    @Override public void onSubscribe(Subscription s) {
+                        Log.e(TAG, "onSubscribe");
+                    }
+
+
+                    @Override public void onNext(Integer integer) {
+                        Log.e(TAG, "onNext: " + integer);
+                    }
+
+
+                    @Override public void onError(Throwable t) {
+                        Log.w(TAG, "onError: ", t);
+                    }
+
+
+                    @Override public void onComplete() {
+                        Log.e(TAG, "onComplete");
+                    }
+                });
+    }
+
+
+    /**
+     * 增加start和request按钮验证s.request()
+     */
+    public void demo24() {
+        start.setVisibility(View.VISIBLE);
+        request.setVisibility(View.VISIBLE);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Flowable.create(new FlowableOnSubscribe<Integer>() {
+                    @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                        throws Exception {
+                        Log.e(TAG, "e 1");
+                        e.onNext(1);
+                        Log.e(TAG, "e 2");
+                        e.onNext(2);
+                        Log.e(TAG, "e 3");
+                        e.onNext(3);
+                        Log.e(TAG, "e complete");
+                        e.onComplete();
+                    }
+                }, BackpressureStrategy.ERROR)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        new Subscriber<Integer>() {
+                            @Override public void onSubscribe(Subscription s) {
+                                Log.e(TAG, "onSubscribe");
+                                mSubscription = s;  //把Subscription保存起来
+                            }
+
+
+                            @Override public void onNext(Integer integer) {
+                                Log.e(TAG, "onNext: " + integer);
+                            }
+
+
+                            @Override public void onError(Throwable t) {
+                                Log.w(TAG, "onError: ", t);
+                            }
+
+
+                            @Override public void onComplete() {
+                                Log.e(TAG, "onComplete");
+                            }
+                        });
+            }
+        });
+        request.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                request(1);
+            }
+        });
+    }
+
+
+    /**
+     * 当上游的i超过128时会报MissingBackpressureException异常
+     * 源码中默认定义了buffersize为128
+     */
+    public void demo25() {
+        start.setVisibility(View.VISIBLE);
+        request.setVisibility(View.VISIBLE);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Flowable.create(new FlowableOnSubscribe<Integer>() {
+                    @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                        throws Exception {
+                        for (int i = 0; i < 129; i++) {
+                            Log.e(TAG, "e " + i);
+                            e.onNext(i);
+                        }
+                    }
+                }, BackpressureStrategy.ERROR)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        new Subscriber<Integer>() {
+                            @Override public void onSubscribe(Subscription s) {
+                                Log.e(TAG, "onSubscribe");
+                                mSubscription = s;
+                            }
+
+
+                            @Override public void onNext(Integer integer) {
+                                Log.e(TAG, "onNext: " + integer);
+                            }
+
+
+                            @Override public void onError(Throwable t) {
+                                Log.w(TAG, "onError: ", t);
+                            }
+
+
+                            @Override public void onComplete() {
+                                Log.e(TAG, "onComplete");
+                            }
+                        });
+            }
+        });
+        request.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                request(128);
+            }
+        });
+    }
+
+
+    /**
+     * 自定义水缸大小
+     * 使用BackpressureStrategy.BUFFER
+     */
+    public void demo26() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                throws Exception {
+                for (int i = 0; i < 1000; i++) {
+                    Log.e(TAG, "e " + i);
+                    e.onNext(i);
+                }
+            }
+        }, BackpressureStrategy.BUFFER)
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread()).subscribe(new Subscriber<Integer>() {
+            @Override public void onSubscribe(Subscription s) {
+                Log.e(TAG, "onSubscribe");
+                mSubscription = s;
+            }
+
+
+            @Override public void onNext(Integer integer) {
+                Log.e(TAG, "onNext: " + integer);
+            }
+
+
+            @Override public void onError(Throwable t) {
+                Log.w(TAG, "onError: ", t);
+            }
+
+
+            @Override public void onComplete() {
+                Log.e(TAG, "onComplete");
+            }
+        });
+    }
+
+
+    /**
+     * BackpressureStrategy.DROP将存不下的事件丢弃
+     */
+    public void demo27() {
+        start.setVisibility(View.VISIBLE);
+        request.setVisibility(View.VISIBLE);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Flowable.create(new FlowableOnSubscribe<Integer>() {
+                    @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                        throws Exception {
+                        for (int i = 0; ; i++) {
+                            e.onNext(i);
+                        }
+                    }
+                }, BackpressureStrategy.DROP)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        new Subscriber<Integer>() {
+                            @Override public void onSubscribe(Subscription s) {
+                                Log.e(TAG, "onSubscribe");
+                                mSubscription = s;
+                            }
+
+
+                            @Override public void onNext(Integer integer) {
+                                Log.e(TAG, "onNext: " + integer);
+                            }
+
+
+                            @Override public void onError(Throwable t) {
+                                Log.w(TAG, "onError: ", t);
+                            }
+
+
+                            @Override public void onComplete() {
+                                Log.e(TAG, "onComplete");
+                            }
+                        });
+            }
+        });
+        request.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                request(128);
+            }
+        });
+    }
+
+
+    /**
+     * BackpressureStrategy.LATEST点击处理只保留最新的事件
+     */
+    public void demo28() {
+        start.setVisibility(View.VISIBLE);
+        request.setVisibility(View.VISIBLE);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Flowable.create(new FlowableOnSubscribe<Integer>() {
+                    @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                        throws Exception {
+                        for (int i = 0; ; i++) {
+                            e.onNext(i);
+                        }
+                    }
+                }, BackpressureStrategy.LATEST)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        new Subscriber<Integer>() {
+                            @Override public void onSubscribe(Subscription s) {
+                                Log.e(TAG, "onSubscribe");
+                                mSubscription = s;
+                            }
+
+
+                            @Override public void onNext(Integer integer) {
+                                Log.e(TAG, "onNext: " + integer);
+                            }
+
+
+                            @Override public void onError(Throwable t) {
+                                Log.w(TAG, "onError: ", t);
+                            }
+
+
+                            @Override public void onComplete() {
+                                Log.e(TAG, "onComplete");
+                            }
+                        });
+            }
+        });
+        request.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                request(128);
+            }
+        });
+    }
+
+
+    /**
+     * DROP改良版
+     */
+    public void demo29() {
+        start.setVisibility(View.VISIBLE);
+        request.setVisibility(View.VISIBLE);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Flowable.create(new FlowableOnSubscribe<Integer>() {
+                    @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                        throws Exception {
+                        for (int i = 0; i < 10000; i++) {
+                            e.onNext(i);
+                        }
+                    }
+                }, BackpressureStrategy.DROP)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        new Subscriber<Integer>() {
+                            @Override public void onSubscribe(Subscription s) {
+                                Log.e(TAG, "onSubscribe");
+                                mSubscription = s;
+                                s.request(128);  //一开始就处理掉128个事件
+                            }
+
+
+                            @Override public void onNext(Integer integer) {
+                                Log.e(TAG, "onNext: " + integer);
+                            }
+
+
+                            @Override public void onError(Throwable t) {
+                                Log.w(TAG, "onError: ", t);
+                            }
+
+
+                            @Override public void onComplete() {
+                                Log.e(TAG, "onComplete");
+                            }
+                        });
+            }
+        });
+        request.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                request(128);
+            }
+        });
+    }
+
+
+    /**
+     * LATEST改良版
+     */
+    public void demo30() {
+        start.setVisibility(View.VISIBLE);
+        request.setVisibility(View.VISIBLE);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Flowable.create(new FlowableOnSubscribe<Integer>() {
+                    @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                        throws Exception {
+                        for (int i = 0; i < 10000; i++) {
+                            e.onNext(i);
+                        }
+                    }
+                }, BackpressureStrategy.LATEST)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        new Subscriber<Integer>() {
+                            @Override public void onSubscribe(Subscription s) {
+                                Log.e(TAG, "onSubscribe");
+                                mSubscription = s;
+                                s.request(128);  //一开始就处理掉128个事件
+                            }
+
+
+                            @Override public void onNext(Integer integer) {
+                                Log.e(TAG, "onNext: " + integer);
+                            }
+
+
+                            @Override public void onError(Throwable t) {
+                                Log.w(TAG, "onError: ", t);
+                            }
+
+
+                            @Override public void onComplete() {
+                                Log.e(TAG, "onComplete");
+                            }
+                        });
+            }
+        });
+        request.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                request(128);
             }
         });
     }
