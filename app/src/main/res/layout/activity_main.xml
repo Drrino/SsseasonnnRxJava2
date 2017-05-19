@@ -29,6 +29,5 @@
             android:layout_height="wrap_content"
             android:visibility="gone"
             android:text="request"/>
-
     </LinearLayout>
 </RelativeLayout>

@@ -80,7 +80,16 @@ public class MainActivity extends AppCompatActivity {
         //demo27();
         //demo28();
         //demo29();
-        demo30();
+        //demo30();
+        //demo31();
+        //demo32();
+        //demo33();
+        //demo34();
+        //demo35();
+        //demo36();
+        //demo37();
+        //demo38();
+        //demo39();
     }
 
 
@@ -1252,6 +1261,384 @@ public class MainActivity extends AppCompatActivity {
         request.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 request(128);
+            }
+        });
+    }
+
+
+    /**
+     * 间隔一毫秒发送一个事件
+     */
+    public void demo31() {
+        Flowable.interval(1, TimeUnit.MICROSECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                new Subscriber<Long>() {
+                    @Override public void onSubscribe(Subscription s) {
+                        Log.e(TAG, "onSubscribe");
+                        mSubscription = s;
+                        s.request(Long.MAX_VALUE);
+                    }
+
+
+                    @Override public void onNext(Long aLong) {
+                        Log.e(TAG, "onNext: " + aLong);
+                        try {
+                            Thread.sleep(1000);  //延时1秒
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+
+                    @Override public void onError(Throwable t) {
+                        Log.w(TAG, "onError: ", t);
+                    }
+
+
+                    @Override public void onComplete() {
+                        Log.e(TAG, "onComplete");
+                    }
+                });
+    }
+
+
+    /**
+     * 间隔一毫秒发送一个事件,并采用背压策略
+     */
+    public void demo32() {
+        Flowable.interval(1, TimeUnit.MICROSECONDS)
+            .onBackpressureDrop()       //背压策略
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                new Subscriber<Long>() {
+                    @Override public void onSubscribe(Subscription s) {
+                        Log.e(TAG, "onSubscribe");
+                        mSubscription = s;
+                        s.request(Long.MAX_VALUE);
+                    }
+
+
+                    @Override public void onNext(Long aLong) {
+                        Log.e(TAG, "onNext: " + aLong);
+                        try {
+                            Thread.sleep(1000);  //延时1秒
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+
+                    @Override public void onError(Throwable t) {
+                        Log.w(TAG, "onError: ", t);
+                    }
+
+
+                    @Override public void onComplete() {
+                        Log.e(TAG, "onComplete");
+                    }
+                });
+    }
+
+
+    /**
+     * 上游打印当前request数量(同步)
+     */
+    public void demo33() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "current requested: " + e.requested());
+            }
+        }, BackpressureStrategy.ERROR)
+            .subscribe(new Subscriber<Integer>() {
+                @Override public void onSubscribe(Subscription s) {
+                    Log.e(TAG, "onSubscribe");
+                    mSubscription = s;
+                    s.request(10);
+                }
+
+
+                @Override public void onNext(Integer integer) {
+                    Log.e(TAG, "onNext: " + integer);
+                }
+
+
+                @Override public void onError(Throwable t) {
+                    Log.w(TAG, "onError: ", t);
+                }
+
+
+                @Override public void onComplete() {
+                    Log.e(TAG, "onComplete");
+                }
+            });
+    }
+
+
+    /**
+     * 下游多次请求,上游打印当前request数量(同步)
+     */
+    public void demo34() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "current requested: " + e.requested());
+            }
+        }, BackpressureStrategy.ERROR)
+            .subscribe(new Subscriber<Integer>() {
+                @Override public void onSubscribe(Subscription s) {
+                    Log.e(TAG, "onSubscribe");
+                    mSubscription = s;
+                    s.request(10);
+                    s.request(100);
+                }
+
+
+                @Override public void onNext(Integer integer) {
+                    Log.e(TAG, "onNext: " + integer);
+                }
+
+
+                @Override public void onError(Throwable t) {
+                    Log.w(TAG, "onError: ", t);
+                }
+
+
+                @Override public void onComplete() {
+                    Log.e(TAG, "onComplete");
+                }
+            });
+    }
+
+
+    /**
+     * 下游调用request()告诉上游处理能力,上游发送一次next事件,requested数量减一
+     * complete和error事件不会消耗requested
+     */
+    public void demo35() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "before e, requested = " + e.requested());
+
+                Log.e(TAG, "e 1");
+                e.onNext(1);
+                Log.e(TAG, "after e 1, requested = " + e.requested());
+
+                Log.e(TAG, "e 2");
+                e.onNext(2);
+                Log.e(TAG, "after e 2, requested = " + e.requested());
+
+                Log.e(TAG, "e 3");
+                e.onNext(3);
+                Log.e(TAG, "after e 3, requested = " + e.requested());
+
+                Log.e(TAG, "e complete");
+                e.onComplete();
+
+                Log.d(TAG, "after e complete, requested = " + e.requested());
+            }
+        }, BackpressureStrategy.ERROR)
+            .subscribe(new Subscriber<Integer>() {
+                @Override public void onSubscribe(Subscription s) {
+                    Log.e(TAG, "onSubscribe");
+                    mSubscription = s;
+                    s.request(10);
+                }
+
+
+                @Override public void onNext(Integer integer) {
+                    Log.e(TAG, "onNext: " + integer);
+                }
+
+
+                @Override public void onError(Throwable t) {
+                    Log.w(TAG, "onError: ", t);
+                }
+
+
+                @Override public void onComplete() {
+                    Log.e(TAG, "onComplete");
+                }
+            });
+    }
+
+
+    /**
+     * 当requested数量减到0时,继续发送回抛MissingBackpressureException异常
+     */
+    public void demo36() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "before e, requested = " + e.requested());
+
+                Log.e(TAG, "e 1");
+                e.onNext(1);
+                Log.e(TAG, "after e 1, requested = " + e.requested());
+
+                Log.e(TAG, "e 2");
+                e.onNext(2);
+                Log.e(TAG, "after e 2, requested = " + e.requested());
+
+                Log.e(TAG, "e 3");
+                e.onNext(3);
+                Log.e(TAG, "after e 3, requested = " + e.requested());
+
+                Log.e(TAG, "e complete");
+                e.onComplete();
+
+                Log.d(TAG, "after e complete, requested = " + e.requested());
+            }
+        }, BackpressureStrategy.ERROR)
+            .subscribe(new Subscriber<Integer>() {
+                @Override public void onSubscribe(Subscription s) {
+                    Log.e(TAG, "onSubscribe");
+                    mSubscription = s;
+                    s.request(2);
+                }
+
+
+                @Override public void onNext(Integer integer) {
+                    Log.e(TAG, "onNext: " + integer);
+                }
+
+
+                @Override public void onError(Throwable t) {
+                    Log.w(TAG, "onError: ", t);
+                }
+
+
+                @Override public void onComplete() {
+                    Log.e(TAG, "onComplete");
+                }
+            });
+    }
+
+
+    /**
+     * 上游打印当前request数量(异步)
+     */
+    public void demo37() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "current requested: " + e.requested());
+            }
+        }, BackpressureStrategy.ERROR)
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(new Subscriber<Integer>() {
+                @Override public void onSubscribe(Subscription s) {
+                    Log.e(TAG, "onSubscribe");
+                    mSubscription = s;
+                }
+
+
+                @Override public void onNext(Integer integer) {
+                    Log.e(TAG, "onNext: " + integer);
+                }
+
+
+                @Override public void onError(Throwable t) {
+                    Log.w(TAG, "onError: ", t);
+                }
+
+
+                @Override public void onComplete() {
+                    Log.e(TAG, "onComplete");
+                }
+            });
+    }
+
+
+    /**
+     * 当上下游工作在不同的线程里时，每一个线程里都有一个requested
+     * 调用request（1000）时，实际上改变的是下游主线程中的requested，而上游中的requested的值是由RxJava内部调用request(n)去设置
+     */
+    public void demo38() {
+        Flowable.create(new FlowableOnSubscribe<Integer>() {
+            @Override public void subscribe(@NonNull FlowableEmitter<Integer> e) throws Exception {
+                Log.e(TAG, "current requested: " + e.requested());
+            }
+        }, BackpressureStrategy.ERROR)
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(new Subscriber<Integer>() {
+                @Override public void onSubscribe(Subscription s) {
+                    Log.e(TAG, "onSubscribe");
+                    mSubscription = s;
+                    s.request(1000);
+                }
+
+
+                @Override public void onNext(Integer integer) {
+                    Log.e(TAG, "onNext: " + integer);
+                }
+
+
+                @Override public void onError(Throwable t) {
+                    Log.w(TAG, "onError: ", t);
+                }
+
+
+                @Override public void onComplete() {
+                    Log.e(TAG, "onComplete");
+                }
+            });
+    }
+
+
+    /**
+     * 当下游消费掉第96个事件后，上游又开始发事件
+     */
+    public void demo39() {
+        start.setVisibility(View.VISIBLE);
+        request.setVisibility(View.VISIBLE);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Flowable.create(new FlowableOnSubscribe<Integer>() {
+                    @Override public void subscribe(@NonNull FlowableEmitter<Integer> e)
+                        throws Exception {
+                        Log.d(TAG, "First requested = " + e.requested());
+                        boolean flag;
+                        for (int i = 0; ; i++) {
+                            flag = false;
+                            while (e.requested() == 0) {
+                                if (!flag) {
+                                    Log.e(TAG, "Oh no! I can't emit value!");
+                                    flag = true;
+                                }
+                            }
+                            e.onNext(i);
+                            Log.e(TAG, "e " + i + " , requested = " + e.requested());
+                        }
+                    }
+                }, BackpressureStrategy.ERROR)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new Subscriber<Integer>() {
+                        @Override public void onSubscribe(Subscription s) {
+                            Log.e(TAG, "onSubscribe");
+                            mSubscription = s;
+                        }
+
+
+                        @Override public void onNext(Integer integer) {
+                            Log.e(TAG, "onNext: " + integer);
+                        }
+
+
+                        @Override public void onError(Throwable t) {
+                            Log.w(TAG, "onError: ", t);
+                        }
+
+
+                        @Override public void onComplete() {
+                            Log.e(TAG, "onComplete");
+                        }
+                    });
+            }
+        });
+        request.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                mSubscription.request(96);
             }
         });
     }
